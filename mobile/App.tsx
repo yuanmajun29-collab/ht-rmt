@@ -9,6 +9,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import IpListScreen from './src/screens/IpListScreen';
 import DevicesScreen from './src/screens/DevicesScreen';
 import DeviceDetailScreen from './src/screens/DeviceDetailScreen';
+import BroadcastScreen from './src/screens/BroadcastScreen';
+import ScheduleScreen from './src/screens/ScheduleScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import type { User, DeviceStackParamList } from './src/types';
 
@@ -40,6 +42,8 @@ function MainTabs() {
     <Tab.Navigator screenOptions={{ tabBarActiveTintColor: '#4f46e5', tabBarInactiveTintColor: '#9ca3af' }}>
       <Tab.Screen name="音柱" component={IpListScreen} options={{ tabBarLabel: '音柱列表' }} />
       <Tab.Screen name="设备管理" component={DeviceNavigator} options={{ headerShown: false, tabBarLabel: '设备管理' }} />
+      <Tab.Screen name="广播" component={BroadcastScreen} options={{ tabBarLabel: '广播' }} />
+      <Tab.Screen name="计划" component={ScheduleScreen} options={{ tabBarLabel: '定时计划' }} />
       <Tab.Screen name="设置" component={SettingsScreen} options={{ tabBarLabel: '设置' }} />
     </Tab.Navigator>
   );

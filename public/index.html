@@ -70,6 +70,70 @@
       </section>
     </main>
 
+    <!-- 广播控制面板 -->
+    <section class="broadcast-panel hidden" id="broadcast-panel">
+      <h2>广播控制</h2>
+      <div class="broadcast-grid">
+        <div class="broadcast-card">
+          <h3>口播 <span class="badge badge-blue">实时播报</span></h3>
+          <textarea id="live-content" placeholder="请输入播报内容..." rows="3"></textarea>
+          <button id="live-button">发送口播</button>
+        </div>
+        <div class="broadcast-card">
+          <h3>插播 <span class="badge badge-red">紧急广播</span></h3>
+          <select id="interrupt-ip"><option value="">— 选择音柱内容 —</option></select>
+          <textarea id="interrupt-content" placeholder="或直接输入插播文字..." rows="2"></textarea>
+          <button id="interrupt-button">立即插播</button>
+        </div>
+      </div>
+      <div class="broadcast-log-section">
+        <div class="section-header">
+          <h3>播报记录</h3>
+          <button id="refresh-log-button">刷新</button>
+        </div>
+        <div id="broadcast-log-list" class="broadcast-log-list"></div>
+      </div>
+    </section>
+
+    <!-- 定时播放面板 -->
+    <section class="schedule-panel hidden" id="schedule-panel">
+      <h2>定时播放</h2>
+      <div class="schedule-layout">
+        <div class="schedule-form-wrap">
+          <h3>新建计划</h3>
+          <div class="schedule-form">
+            <input id="sch-name" placeholder="计划名称" />
+            <select id="sch-ip"><option value="">— 选择音柱 —</option></select>
+            <select id="sch-repeat">
+              <option value="once">单次</option>
+              <option value="daily">每天</option>
+              <option value="workdays">工作日</option>
+              <option value="weekly">每周指定日</option>
+            </select>
+            <input id="sch-date" type="date" />
+            <input id="sch-time" type="time" placeholder="播放时间" />
+            <div id="sch-days" class="sch-days hidden">
+              <label><input type="checkbox" value="0" /> 日</label>
+              <label><input type="checkbox" value="1" /> 一</label>
+              <label><input type="checkbox" value="2" /> 二</label>
+              <label><input type="checkbox" value="3" /> 三</label>
+              <label><input type="checkbox" value="4" /> 四</label>
+              <label><input type="checkbox" value="5" /> 五</label>
+              <label><input type="checkbox" value="6" /> 六</label>
+            </div>
+            <button id="sch-create">创建计划</button>
+          </div>
+        </div>
+        <div class="schedule-list-wrap">
+          <div class="section-header">
+            <h3>现有计划</h3>
+            <button id="refresh-schedule-button">刷新</button>
+          </div>
+          <div id="schedule-list"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="admin-panel hidden" id="admin-panel">
       <h2>管理员面板</h2>
       <div class="admin-controls">

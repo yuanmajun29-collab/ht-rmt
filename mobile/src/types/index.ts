@@ -40,6 +40,33 @@ export type DeviceEvent = {
   timestamp: string;
 };
 
+export type Schedule = {
+  id: number;
+  tenant_id: string;
+  name: string;
+  ip_id: number | null;
+  device_ids: string;
+  repeat_type: 'once' | 'daily' | 'workdays' | 'weekly';
+  scheduled_date: string | null;
+  scheduled_time: string;
+  days_of_week: string;
+  duration: number;
+  status: 'active' | 'paused' | 'completed';
+  created_at: string;
+};
+
+export type BroadcastLog = {
+  id: number;
+  type: 'scheduled' | 'live' | 'interrupt';
+  name: string | null;
+  ip_id: number | null;
+  content: string | null;
+  device_ids: string;
+  priority: number;
+  status: string;
+  created_at: string;
+};
+
 export type DeviceStackParamList = {
   DeviceList: undefined;
   DeviceDetail: { device: Device };

@@ -9,6 +9,7 @@ const config = require('./config/config');
 const TenantManager = require('./services/tenant-manager');
 const DeviceManager = require('./services/device-manager');
 const DeviceDiscovery = require('./services/device-discovery');
+const Scheduler = require('./services/scheduler');
 const redisClient = require('./services/redis-client');
 
 const app = express();
@@ -165,6 +166,53 @@ function initDb() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`).run();
   }
+
+  // 定时播放计划
+  db.prepare(`CREATE TABLE IF NOT EXISTS schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    ip_id INTEGER,
+    device_ids TEXT NOT NULL DEFAULT '[]',
+    repeat_type TEXT NOT NULL DEFAULT 'once',
+    scheduled_date TEXT,
+    scheduled_time TEXT NOT NULL,
+    days_of_week TEXT NOT NULL DEFAULT '[]',
+    duration INTEGER NOT NULL DEFAULT 60,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  // 播报日志（口播/插播/定时）
+  db.prepare(`CREATE TABLE IF NOT EXISTS broadcast_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    name TEXT,
+    ip_id INTEGER,
+    content TEXT,
+    device_ids TEXT NOT NULL DEFAULT '[]',
+    priority INTEGER NOT NULL DEFAULT 5,
+    status TEXT NOT NULL DEFAULT 'sent',
+    schedule_id INTEGER,
+    triggered_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  // 设备命令队列（设备轮询此表获取待执行命令）
+  db.prepare(`CREATE TABLE IF NOT EXISTS device_commands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT NOT NULL,
+    command_type TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    priority INTEGER NOT NULL DEFAULT 5,
+    status TEXT NOT NULL DEFAULT 'pending',
+    broadcast_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    acked_at TEXT
+  )`).run();
 
   // 创建默认用户和初始IP
   const tenantId = config.get('multiTenant.defaultTenant') || 'default';
@@ -563,6 +611,153 @@ app.get('/api/platform/info', (req, res) => {
   });
 });
 
+// ========== 广播辅助函数 ==========
+function sendBroadcast(tenantId, type, { name, ipId, content, deviceIds, priority, scheduleId, triggeredBy }) {
+  let targets = deviceIds;
+  if (!targets || targets === 'all' || targets.length === 0) {
+    targets = db.prepare('SELECT id FROM devices WHERE tenant_id = ?').all(tenantId).map(d => d.id);
+  }
+
+  const result = db.prepare(`
+    INSERT INTO broadcast_log (tenant_id, type, name, ip_id, content, device_ids, priority, schedule_id, triggered_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(tenantId, type, name, ipId || null, content || null, JSON.stringify(targets), priority, scheduleId || null, triggeredBy || null);
+
+  const broadcastId = result.lastInsertRowid;
+  const cmdType = type === 'interrupt' ? 'interrupt' : type === 'live' ? 'announce' : 'play';
+  const payload = JSON.stringify({ ipId, content, priority, type });
+  const stmt = db.prepare('INSERT INTO device_commands (device_id, command_type, payload, priority, broadcast_id) VALUES (?, ?, ?, ?, ?)');
+  for (const deviceId of targets) {
+    stmt.run(deviceId, cmdType, payload, priority, broadcastId);
+  }
+
+  return { broadcastId, targets };
+}
+
+// ========== 定时播放计划 API ==========
+app.get('/api/schedules', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM schedules WHERE tenant_id = ? ORDER BY created_at DESC').all(req.user.tenant_id);
+  res.json({ schedules: rows });
+});
+
+app.post('/api/schedules', requireAuth, (req, res) => {
+  const { name, ipId, deviceIds, repeatType, scheduledDate, scheduledTime, daysOfWeek, duration } = req.body;
+  if (!name || !scheduledTime) {
+    return res.status(400).json({ error: '计划名称和时间为必填项' });
+  }
+  if (!/^\d{2}:\d{2}$/.test(scheduledTime)) {
+    return res.status(400).json({ error: '时间格式应为 HH:MM' });
+  }
+  const result = db.prepare(`
+    INSERT INTO schedules (tenant_id, name, ip_id, device_ids, repeat_type, scheduled_date, scheduled_time, days_of_week, duration, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    req.user.tenant_id, name, ipId || null,
+    JSON.stringify(deviceIds || []), repeatType || 'once',
+    scheduledDate || null, scheduledTime,
+    JSON.stringify(daysOfWeek || []),
+    duration || 60, req.user.id
+  );
+  res.json({ message: '计划已创建', id: result.lastInsertRowid });
+});
+
+app.put('/api/schedules/:id', requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  const s = db.prepare('SELECT id FROM schedules WHERE id = ? AND tenant_id = ?').get(id, req.user.tenant_id);
+  if (!s) return res.status(404).json({ error: '计划未找到' });
+  const { name, ipId, deviceIds, repeatType, scheduledDate, scheduledTime, daysOfWeek, duration } = req.body;
+  db.prepare(`
+    UPDATE schedules SET name=?, ip_id=?, device_ids=?, repeat_type=?, scheduled_date=?,
+    scheduled_time=?, days_of_week=?, duration=?, updated_at=? WHERE id=?
+  `).run(name, ipId || null, JSON.stringify(deviceIds || []), repeatType || 'once',
+    scheduledDate || null, scheduledTime, JSON.stringify(daysOfWeek || []),
+    duration || 60, new Date().toISOString(), id);
+  res.json({ message: '计划已更新' });
+});
+
+app.delete('/api/schedules/:id', requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  const s = db.prepare('SELECT id FROM schedules WHERE id = ? AND tenant_id = ?').get(id, req.user.tenant_id);
+  if (!s) return res.status(404).json({ error: '计划未找到' });
+  db.prepare('DELETE FROM schedules WHERE id = ?').run(id);
+  res.json({ message: '计划已删除' });
+});
+
+app.post('/api/schedules/:id/toggle', requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  const s = db.prepare('SELECT id, status FROM schedules WHERE id = ? AND tenant_id = ?').get(id, req.user.tenant_id);
+  if (!s) return res.status(404).json({ error: '计划未找到' });
+  const next = s.status === 'active' ? 'paused' : 'active';
+  db.prepare('UPDATE schedules SET status = ?, updated_at = ? WHERE id = ?').run(next, new Date().toISOString(), id);
+  res.json({ message: next === 'active' ? '计划已启用' : '计划已暂停', status: next });
+});
+
+// ========== 广播 API ==========
+app.post('/api/broadcast/live', requireAuth, (req, res) => {
+  const { content, deviceIds } = req.body;
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: '口播内容不能为空' });
+  }
+  const result = sendBroadcast(req.user.tenant_id, 'live', {
+    name: `口播 - ${req.user.username}`,
+    content: content.trim(),
+    deviceIds: deviceIds || [],
+    priority: 3,
+    triggeredBy: req.user.id,
+  });
+  res.json({ message: `口播已发送至 ${result.targets.length} 台设备`, ...result });
+});
+
+app.post('/api/broadcast/interrupt', requireAuth, (req, res) => {
+  const { ipId, content, deviceIds } = req.body;
+  if (!ipId && !content) {
+    return res.status(400).json({ error: '请指定音柱或内容' });
+  }
+  const result = sendBroadcast(req.user.tenant_id, 'interrupt', {
+    name: `插播 - ${req.user.username}`,
+    ipId: ipId || null,
+    content: content || null,
+    deviceIds: deviceIds || [],
+    priority: 1,
+    triggeredBy: req.user.id,
+  });
+  res.json({ message: `插播已发送至 ${result.targets.length} 台设备`, ...result });
+});
+
+app.get('/api/broadcast/log', requireAuth, (req, res) => {
+  const limit = Number(req.query.limit) || 50;
+  const rows = db.prepare('SELECT * FROM broadcast_log WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?').all(req.user.tenant_id, limit);
+  res.json({ log: rows });
+});
+
+// ========== 设备命令队列（设备侧轮询） ==========
+app.get('/api/devices/:deviceId/commands', (req, res) => {
+  const cmds = db.prepare(`
+    SELECT * FROM device_commands WHERE device_id = ? AND status = 'pending'
+    ORDER BY priority ASC, created_at ASC LIMIT 10
+  `).all(req.params.deviceId);
+  res.json({ commands: cmds });
+});
+
+app.post('/api/devices/:deviceId/commands/:cmdId/ack', (req, res) => {
+  db.prepare("UPDATE device_commands SET status = 'acknowledged', acked_at = ? WHERE id = ? AND device_id = ?")
+    .run(new Date().toISOString(), Number(req.params.cmdId), req.params.deviceId);
+  res.json({ message: '命令已确认' });
+});
+
+// ========== 调度器初始化 ==========
+const scheduler = new Scheduler(db, (schedule) => {
+  const tenantId = schedule.tenant_id;
+  sendBroadcast(tenantId, 'scheduled', {
+    name: schedule.name,
+    ipId: schedule.ip_id,
+    deviceIds: JSON.parse(schedule.device_ids || '[]'),
+    priority: 5,
+    scheduleId: schedule.id,
+  });
+});
+scheduler.start();
+
 const server = app.listen(port, () => {
   console.log(`\n========================================`);
   console.log(`${config.get('platform.name')} v${config.get('platform.version')}`);
@@ -577,6 +772,7 @@ const server = app.listen(port, () => {
 process.on('SIGTERM', () => {
   console.log('收到 SIGTERM 信号，优雅关闭中...');
   server.close(() => {
+    scheduler.stop();
     if (deviceDiscovery) deviceDiscovery.stop();
     if (redisClient.isConnected()) redisClient.disconnect();
     db.close();
