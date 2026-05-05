@@ -231,7 +231,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 })();
 
 function getCurrentUser(req) {
-  const token = req.cookies.token;
+  let token = req.cookies.token;
+  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.slice(7);
+  }
   if (!token) return null;
   try {
     const payload = jwt.verify(token, JWT_SECRET);
@@ -304,8 +307,9 @@ app.post('/api/register', (req, res) => {
     tenantManager.addTenantMember(finalTenantId, user.id, 'member');
   }
 
-  res.cookie('token', createToken(user), { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
-  res.json({ user });
+  const token = createToken(user);
+  res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.json({ user, token });
 });
 
 app.post('/api/login', (req, res) => {
@@ -321,8 +325,9 @@ app.post('/api/login', (req, res) => {
     return res.status(400).json({ error: '用户名或密码错误' });
   }
 
-  res.cookie('token', createToken(user), { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
-  res.json({ user: { id: user.id, username: user.username, role: user.role, tenant_id: user.tenant_id } });
+  const token = createToken(user);
+  res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.json({ user: { id: user.id, username: user.username, role: user.role, tenant_id: user.tenant_id }, token });
 });
 
 app.post('/api/logout', (req, res) => {
