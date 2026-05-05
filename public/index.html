@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IP 音柱平台</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <h1>HT-RMT IP 音柱平台</h1>
+      <p>登录后浏览音柱、试听、收藏、提交反馈，并通过管理员界面管理 IP 内容。</p>
+    </header>
+
+    <section class="top-panel">
+      <div class="user-panel">
+        <div class="profile">
+          <strong id="user-name">未登录</strong>
+          <span id="user-role"></span>
+        </div>
+        <div class="action-buttons">
+          <button id="show-login">登录</button>
+          <button id="show-register">注册</button>
+          <button id="logout-button" class="hidden">退出</button>
+        </div>
+      </div>
+
+      <div class="status-message" id="status"></div>
+
+      <div class="auth-panel hidden" id="auth-panel">
+        <div class="auth-tabs">
+          <button id="login-tab" class="active">登录</button>
+          <button id="register-tab">注册</button>
+        </div>
+        <div class="auth-form" id="login-form">
+          <input id="login-username" placeholder="用户名" />
+          <input id="login-password" type="password" placeholder="密码" />
+          <button id="login-button">登录</button>
+        </div>
+        <div class="auth-form hidden" id="register-form">
+          <input id="register-username" placeholder="用户名" />
+          <input id="register-password" type="password" placeholder="密码" />
+          <button id="register-button">注册</button>
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <section class="ip-list">
+        <div class="section-header">
+          <h2>可用音柱</h2>
+          <button id="refresh-button">刷新</button>
+        </div>
+        <div id="ips" class="grid"></div>
+      </section>
+
+      <section class="control-panel">
+        <h2>控制面板</h2>
+        <div id="selected-ip" class="selected-ip">请选择一个音柱以开始试听。</div>
+        <button id="play-button" disabled>播放音柱</button>
+        <div class="feedback">
+          <textarea id="feedback" placeholder="写下你的反馈..." rows="4"></textarea>
+          <button id="feedback-button">提交反馈</button>
+        </div>
+        <div class="favorite-list hidden" id="favorite-section">
+          <h3>我的收藏</h3>
+          <div id="favorites" class="grid"></div>
+        </div>
+      </section>
+    </main>
+
+    <section class="admin-panel hidden" id="admin-panel">
+      <h2>管理员面板</h2>
+      <div class="admin-controls">
+        <div class="admin-form">
+          <h3>新增音柱</h3>
+          <input id="admin-name" placeholder="音柱名称" />
+          <textarea id="admin-description" placeholder="音柱描述" rows="3"></textarea>
+          <input id="admin-image" placeholder="图片 URL 或路径" value="/assets/ip-pill-1.svg" />
+          <input id="admin-tone" type="number" placeholder="音频频率（Hz）" value="330" />
+          <button id="admin-create">创建音柱</button>
+        </div>
+        <div class="admin-list">
+          <h3>现有音柱</h3>
+          <div id="admin-ips"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

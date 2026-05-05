@@ -1,0 +1,77 @@
+{
+  "common": {
+    "language": "English",
+    "timezone": "UTC"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "loginSuccess": "Login successful",
+    "registerSuccess": "Registration successful",
+    "loginFailed": "Login failed - invalid username or password",
+    "unauthorized": "Please login first"
+  },
+  "device": {
+    "register": "Register Device",
+    "deviceName": "Device Name",
+    "deviceType": "Device Type",
+    "deviceId": "Device ID",
+    "macAddress": "MAC Address",
+    "ipAddress": "IP Address",
+    "firmwareVersion": "Firmware Version",
+    "onlineStatus": "Online",
+    "offlineStatus": "Offline",
+    "registered": "Device registered successfully",
+    "registrationFailed": "Device registration failed",
+    "deviceNotFound": "Device not found",
+    "heartbeatReceived": "Device heartbeat received"
+  },
+  "ip": {
+    "audioSpeaker": "IP Audio Speaker",
+    "browse": "Browse Speakers",
+    "play": "Play",
+    "collect": "Collect",
+    "uncollect": "Uncollect",
+    "frequency": "Frequency",
+    "audioTone": "Audio Tone",
+    "feedback": "Feedback"
+  },
+  "tenant": {
+    "selectTenant": "Select Tenant",
+    "createTenant": "Create Tenant",
+    "tenantName": "Tenant Name",
+    "tenantDescription": "Tenant Description",
+    "members": "Members",
+    "addMember": "Add Member",
+    "removeMember": "Remove Member",
+    "settings": "Settings"
+  },
+  "admin": {
+    "dashboard": "Admin Dashboard",
+    "manageIPs": "Manage IP Speakers",
+    "manageDevices": "Manage Devices",
+    "manageTenants": "Manage Tenants",
+    "manageUsers": "Manage Users",
+    "createIP": "Create Speaker",
+    "editIP": "Edit Speaker",
+    "deleteIP": "Delete Speaker",
+    "statistics": "Statistics"
+  },
+  "error": {
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "notFound": "Not found",
+    "serverError": "Server error",
+    "invalidInput": "Invalid input",
+    "databaseError": "Database error"
+  },
+  "success": {
+    "created": "Created successfully",
+    "updated": "Updated successfully",
+    "deleted": "Deleted successfully",
+    "saved": "Saved"
+  }
+}

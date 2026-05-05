@@ -1,0 +1,77 @@
+{
+  "common": {
+    "language": "简体中文",
+    "timezone": "Asia/Shanghai"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出登录",
+    "username": "用户名",
+    "password": "密码",
+    "loginSuccess": "登录成功",
+    "registerSuccess": "注册成功",
+    "loginFailed": "登录失败，用户名或密码错误",
+    "unauthorized": "请先登录"
+  },
+  "device": {
+    "register": "注册设备",
+    "deviceName": "设备名称",
+    "deviceType": "设备类型",
+    "deviceId": "设备ID",
+    "macAddress": "MAC 地址",
+    "ipAddress": "IP 地址",
+    "firmwareVersion": "固件版本",
+    "onlineStatus": "在线",
+    "offlineStatus": "离线",
+    "registered": "设备已注册",
+    "registrationFailed": "设备注册失败",
+    "deviceNotFound": "设备未找到",
+    "heartbeatReceived": "收到设备心跳"
+  },
+  "ip": {
+    "audioSpeaker": "IP 音柱",
+    "browse": "浏览音柱",
+    "play": "播放",
+    "collect": "收藏",
+    "uncollect": "取消收藏",
+    "frequency": "频率",
+    "audioTone": "音频音调",
+    "feedback": "反馈"
+  },
+  "tenant": {
+    "selectTenant": "选择租户",
+    "createTenant": "创建租户",
+    "tenantName": "租户名称",
+    "tenantDescription": "租户描述",
+    "members": "成员",
+    "addMember": "添加成员",
+    "removeMember": "移除成员",
+    "settings": "设置"
+  },
+  "admin": {
+    "dashboard": "管理面板",
+    "manageIPs": "管理 IP 音柱",
+    "manageDevices": "管理设备",
+    "manageTenants": "管理租户",
+    "manageUsers": "管理用户",
+    "createIP": "创建音柱",
+    "editIP": "编辑音柱",
+    "deleteIP": "删除音柱",
+    "statistics": "统计数据"
+  },
+  "error": {
+    "unauthorized": "未授权",
+    "forbidden": "禁止访问",
+    "notFound": "未找到",
+    "serverError": "服务器错误",
+    "invalidInput": "输入无效",
+    "databaseError": "数据库错误"
+  },
+  "success": {
+    "created": "创建成功",
+    "updated": "更新成功",
+    "deleted": "删除成功",
+    "saved": "已保存"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "platform": {
+    "name": "HT-RMT IP 音柱平台",
+    "version": "0.3.0",
+    "locale": "zh_CN"
+  },
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "trustProxy": false
+  },
+  "database": {
+    "path": "./data/platform.db",
+    "maxConnections": 5,
+    "timeout": 5000
+  },
+  "clustering": {
+    "enabled": false,
+    "numWorkers": 0,
+    "redisUrl": "redis://localhost:6379"
+  },
+  "multiTenant": {
+    "enabled": true,
+    "defaultTenant": "default",
+    "isolation": "database"
+  },
+  "deviceDiscovery": {
+    "enabled": true,
+    "protocol": "mdns",
+    "port": 5353,
+    "interval": 30000,
+    "timeout": 5000
+  },
+  "jwt": {
+    "secret": "change-me-in-production",
+    "expiresIn": "7d",
+    "algorithm": "HS256"
+  },
+  "redis": {
+    "enabled": false,
+    "url": "redis://localhost:6379",
+    "db": 0,
+    "sessionStorage": true
+  },
+  "localization": {
+    "defaultLocale": "zh_CN",
+    "availableLocales": ["zh_CN", "en_US"],
+    "directory": "./locales"
+  },
+  "security": {
+    "passwordMinLength": 6,
+    "passwordHashRounds": 10,
+    "corsEnabled": false,
+    "rateLimiting": false
+  }
+}
