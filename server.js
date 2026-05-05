@@ -255,7 +255,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 })();
 
 function getCurrentUser(req) {
-  const token = req.cookies.token;
+  let token = req.cookies.token;
+  if (!token) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
+  }
   if (!token) return null;
   try {
     const payload = jwt.verify(token, JWT_SECRET);
