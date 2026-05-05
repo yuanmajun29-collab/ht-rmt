@@ -17,6 +17,11 @@ const JWT_SECRET = config.get('jwt.secret');
 const dataDir = config.get('database.path').split('/').slice(0, -1).join('/');
 const dbPath = config.get('database.path');
 
+if (JWT_SECRET === 'change-me-in-production' && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: JWT_SECRET 未配置，生产环境禁止使用默认密钥，请设置环境变量 JWT_SECRET');
+  process.exit(1);
+}
+
 function loadLocale(locale) {
   try {
     const localePath = path.join(__dirname, 'locales', `${locale}.json`);
@@ -160,35 +165,6 @@ function initDb() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`).run();
   }
-
-  // 创建设备表
-  db.prepare(`CREATE TABLE IF NOT EXISTS devices (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    device_type TEXT NOT NULL,
-    model TEXT,
-    mac_address TEXT UNIQUE,
-    ip_address TEXT,
-    port INTEGER DEFAULT 8080,
-    status TEXT DEFAULT 'online',
-    firmware_version TEXT,
-    serial_number TEXT UNIQUE,
-    last_heartbeat TEXT,
-    capabilities TEXT,
-    metadata TEXT,
-    registered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`).run();
-
-  db.prepare(`CREATE TABLE IF NOT EXISTS device_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    device_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    event_data TEXT,
-    timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(device_id) REFERENCES devices(id)
-  )`).run();
 
   // 创建默认用户和初始IP
   const tenantId = config.get('multiTenant.defaultTenant') || 'default';
@@ -391,12 +367,13 @@ app.post('/api/favorites/:ipId', requireAuth, (req, res) => {
 
 app.post('/api/play', (req, res) => {
   const { ipId } = req.body;
-  const ip = db.prepare('SELECT id, name, audio_tone FROM ips WHERE id = ?').get(ipId);
+  const user = getCurrentUser(req);
+  const tenantId = user?.tenant_id || config.get('multiTenant.defaultTenant');
+  const ip = db.prepare('SELECT id, name, audio_tone FROM ips WHERE id = ? AND tenant_id = ?').get(ipId, tenantId);
   if (!ip) {
     return res.status(404).json({ error: '音柱未找到' });
   }
 
-  const user = getCurrentUser(req);
   db.prepare('INSERT INTO plays (user_id, ip_id) VALUES (?, ?)').run(user?.id || null, ipId);
   res.json({ message: `开始播放 ${ip.name}。`, audioTone: ip.audio_tone });
 });
