@@ -24,6 +24,8 @@ const playButton = document.getElementById('play-button');
 const feedbackTextarea = document.getElementById('feedback');
 const feedbackButton = document.getElementById('feedback-button');
 const adminPanel = document.getElementById('admin-panel');
+const broadcastPanel = document.getElementById('broadcast-panel');
+const schedulePanel = document.getElementById('schedule-panel');
 const adminIpsContainer = document.getElementById('admin-ips');
 const adminName = document.getElementById('admin-name');
 const adminDescription = document.getElementById('admin-description');
@@ -72,6 +74,11 @@ function updateUserView() {
     } else {
       adminPanel.classList.add('hidden');
     }
+    broadcastPanel.classList.remove('hidden');
+    schedulePanel.classList.remove('hidden');
+    loadBroadcastLog();
+    loadSchedules();
+    populateScheduleIps();
   } else {
     userNameEl.textContent = '未登录';
     userRoleEl.textContent = '';
@@ -79,6 +86,8 @@ function updateUserView() {
     showLoginButton.classList.remove('hidden');
     showRegisterButton.classList.remove('hidden');
     adminPanel.classList.add('hidden');
+    broadcastPanel.classList.add('hidden');
+    schedulePanel.classList.add('hidden');
   }
 }
 
@@ -366,6 +375,132 @@ refreshButton.addEventListener('click', () => loadIps());
 playButton.addEventListener('click', playIp);
 feedbackButton.addEventListener('click', submitFeedback);
 adminCreate.addEventListener('click', createAdminIp);
+
+// ========== 广播控制 ==========
+async function loadBroadcastLog() {
+  const data = await fetchJson('/api/broadcast/log?limit=20');
+  const list = document.getElementById('broadcast-log-list');
+  if (!data.log || data.log.length === 0) {
+    list.innerHTML = '<p class="empty-tip">暂无播报记录</p>';
+    return;
+  }
+  const typeLabel = { scheduled: '定时', live: '口播', interrupt: '插播' };
+  list.innerHTML = data.log.map(r => `
+    <div class="log-row">
+      <span class="log-type log-type-${r.type}">${typeLabel[r.type] || r.type}</span>
+      <span class="log-name">${r.name || '—'}</span>
+      <span class="log-devices">${JSON.parse(r.device_ids || '[]').length} 台设备</span>
+      <span class="log-time">${new Date(r.created_at).toLocaleString('zh-CN')}</span>
+    </div>
+  `).join('');
+}
+
+async function sendLiveBroadcast() {
+  const content = document.getElementById('live-content').value.trim();
+  if (!content) { showMessage('请输入口播内容', 'warning'); return; }
+  const data = await fetchJson('/api/broadcast/live', { method: 'POST', body: JSON.stringify({ content }) });
+  if (data.error) { showMessage(data.error, 'error'); return; }
+  document.getElementById('live-content').value = '';
+  showMessage(data.message, 'success');
+  loadBroadcastLog();
+}
+
+async function sendInterruptBroadcast() {
+  const ipId = Number(document.getElementById('interrupt-ip').value) || null;
+  const content = document.getElementById('interrupt-content').value.trim() || null;
+  if (!ipId && !content) { showMessage('请选择音柱或输入插播内容', 'warning'); return; }
+  const data = await fetchJson('/api/broadcast/interrupt', { method: 'POST', body: JSON.stringify({ ipId, content }) });
+  if (data.error) { showMessage(data.error, 'error'); return; }
+  document.getElementById('interrupt-content').value = '';
+  showMessage(data.message, 'success');
+  loadBroadcastLog();
+}
+
+// ========== 定时播放 ==========
+async function populateScheduleIps() {
+  const data = await fetchJson('/api/ips');
+  const selects = [document.getElementById('sch-ip'), document.getElementById('interrupt-ip')];
+  selects.forEach(sel => {
+    const base = sel.options[0].outerHTML;
+    sel.innerHTML = base + (data.ips || []).map(ip => `<option value="${ip.id}">${ip.name} (${ip.audio_tone}Hz)</option>`).join('');
+  });
+}
+
+async function loadSchedules() {
+  const data = await fetchJson('/api/schedules');
+  const list = document.getElementById('schedule-list');
+  if (!data.schedules || data.schedules.length === 0) {
+    list.innerHTML = '<p class="empty-tip">暂无计划</p>';
+    return;
+  }
+  const repeatLabel = { once: '单次', daily: '每天', workdays: '工作日', weekly: '每周' };
+  const statusLabel = { active: '启用', paused: '暂停', completed: '已完成' };
+  list.innerHTML = data.schedules.map(s => `
+    <div class="schedule-row">
+      <div class="schedule-info">
+        <strong>${s.name}</strong>
+        <span class="sch-meta">${repeatLabel[s.repeat_type] || s.repeat_type} · ${s.scheduled_time}${s.scheduled_date ? ' · ' + s.scheduled_date : ''}</span>
+        <span class="sch-status sch-status-${s.status}">${statusLabel[s.status] || s.status}</span>
+      </div>
+      <div class="schedule-actions">
+        ${s.status !== 'completed' ? `<button class="toggle-btn" data-id="${s.id}" data-status="${s.status}">${s.status === 'active' ? '暂停' : '启用'}</button>` : ''}
+        <button class="del-btn" data-id="${s.id}">删除</button>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const res = await fetchJson(`/api/schedules/${btn.dataset.id}/toggle`, { method: 'POST' });
+      if (res.error) showMessage(res.error, 'error');
+      else { showMessage(res.message, 'success'); loadSchedules(); }
+    });
+  });
+  list.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('确认删除该计划？')) return;
+      const res = await fetchJson(`/api/schedules/${btn.dataset.id}`, { method: 'DELETE' });
+      if (res.error) showMessage(res.error, 'error');
+      else { showMessage(res.message, 'success'); loadSchedules(); }
+    });
+  });
+}
+
+async function createSchedule() {
+  const repeatType = document.getElementById('sch-repeat').value;
+  const daysOfWeek = repeatType === 'weekly'
+    ? [...document.querySelectorAll('#sch-days input:checked')].map(el => Number(el.value))
+    : [];
+  const payload = {
+    name: document.getElementById('sch-name').value.trim(),
+    ipId: Number(document.getElementById('sch-ip').value) || null,
+    repeatType,
+    scheduledDate: document.getElementById('sch-date').value || null,
+    scheduledTime: document.getElementById('sch-time').value,
+    daysOfWeek,
+  };
+  if (!payload.name || !payload.scheduledTime) {
+    showMessage('请填写计划名称和时间', 'warning');
+    return;
+  }
+  const data = await fetchJson('/api/schedules', { method: 'POST', body: JSON.stringify(payload) });
+  if (data.error) { showMessage(data.error, 'error'); return; }
+  document.getElementById('sch-name').value = '';
+  document.getElementById('sch-time').value = '';
+  showMessage(data.message, 'success');
+  loadSchedules();
+}
+
+// 事件绑定
+document.getElementById('live-button').addEventListener('click', sendLiveBroadcast);
+document.getElementById('interrupt-button').addEventListener('click', sendInterruptBroadcast);
+document.getElementById('refresh-log-button').addEventListener('click', loadBroadcastLog);
+document.getElementById('sch-create').addEventListener('click', createSchedule);
+document.getElementById('refresh-schedule-button').addEventListener('click', loadSchedules);
+document.getElementById('sch-repeat').addEventListener('change', function () {
+  document.getElementById('sch-date').classList.toggle('hidden', this.value !== 'once');
+  document.getElementById('sch-days').classList.toggle('hidden', this.value !== 'weekly');
+});
 
 loadProfile().then(loadIps).catch((err) => {
   console.error(err);

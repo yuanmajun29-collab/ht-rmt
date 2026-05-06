@@ -1,0 +1,19 @@
+{
+  "name": "ht-rmt-device",
+  "version": "1.0.0",
+  "description": "HT-RMT IP 音柱设备端程序 — 运行于硬件设备（树莓派/嵌入式Linux）",
+  "main": "device.js",
+  "scripts": {
+    "start": "node device.js",
+    "dev": "nodemon device.js",
+    "install-service": "node scripts/install-service.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
