@@ -262,6 +262,13 @@ if (config.get('deviceDiscovery.enabled')) {
     interval: config.get('deviceDiscovery.interval'),
     onDeviceDiscovered: (device) => {
       console.log(`[发现] 新设备: ${device.name} (${device.deviceId})`);
+      const tenantId = config.get('multiTenant.defaultTenant');
+      try {
+        deviceManager.registerDevice(tenantId, device);
+        console.log(`[发现] 已自动注册: ${device.name}`);
+      } catch (err) {
+        console.warn(`[发现] 自动注册跳过: ${err.message}`);
+      }
     }
   });
   deviceDiscovery.start();
@@ -612,11 +619,13 @@ app.get('/api/platform/info', (req, res) => {
 });
 
 // ========== 广播辅助函数 ==========
-function sendBroadcast(tenantId, type, { name, ipId, content, deviceIds, priority, scheduleId, triggeredBy }) {
+function sendBroadcast(tenantId, type, { name, ipId, content, deviceIds, priority, scheduleId, triggeredBy, duration }) {
   let targets = deviceIds;
   if (!targets || targets === 'all' || targets.length === 0) {
     targets = db.prepare('SELECT id FROM devices WHERE tenant_id = ?').all(tenantId).map(d => d.id);
   }
+
+  const ipData = ipId ? db.prepare('SELECT audio_tone, name FROM ips WHERE id = ?').get(ipId) : null;
 
   const result = db.prepare(`
     INSERT INTO broadcast_log (tenant_id, type, name, ip_id, content, device_ids, priority, schedule_id, triggered_by)
@@ -625,7 +634,15 @@ function sendBroadcast(tenantId, type, { name, ipId, content, deviceIds, priorit
 
   const broadcastId = result.lastInsertRowid;
   const cmdType = type === 'interrupt' ? 'interrupt' : type === 'live' ? 'announce' : 'play';
-  const payload = JSON.stringify({ ipId, content, priority, type });
+  const payload = JSON.stringify({
+    ipId: ipId || null,
+    audioTone: ipData?.audio_tone || null,
+    ipName: ipData?.name || null,
+    content: content || null,
+    priority,
+    type,
+    duration: duration || 5,
+  });
   const stmt = db.prepare('INSERT INTO device_commands (device_id, command_type, payload, priority, broadcast_id) VALUES (?, ?, ?, ?, ?)');
   for (const deviceId of targets) {
     stmt.run(deviceId, cmdType, payload, priority, broadcastId);
@@ -747,13 +764,13 @@ app.post('/api/devices/:deviceId/commands/:cmdId/ack', (req, res) => {
 
 // ========== 调度器初始化 ==========
 const scheduler = new Scheduler(db, (schedule) => {
-  const tenantId = schedule.tenant_id;
-  sendBroadcast(tenantId, 'scheduled', {
+  sendBroadcast(schedule.tenant_id, 'scheduled', {
     name: schedule.name,
     ipId: schedule.ip_id,
     deviceIds: JSON.parse(schedule.device_ids || '[]'),
     priority: 5,
     scheduleId: schedule.id,
+    duration: schedule.duration || 5,
   });
 });
 scheduler.start();

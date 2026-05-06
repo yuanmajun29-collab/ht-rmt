@@ -1,0 +1,19 @@
+[Unit]
+Description=HT-RMT IP 音柱设备端程序
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ht-rmt-device
+ExecStart=/usr/bin/node /home/pi/ht-rmt-device/device.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ht-rmt-device
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
